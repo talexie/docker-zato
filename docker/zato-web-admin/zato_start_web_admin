@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Thanks to Zato, rafal-k
+
+cd /opt/zato
+
+rm -f /opt/zato/env/web-admin/run/pidfile
+/opt/zato/current/bin/zato start /opt/zato/env/web-admin/run --fg

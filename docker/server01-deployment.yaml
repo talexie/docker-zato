@@ -1,0 +1,38 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: ./migration-tools parse --docker-file docker-compose-no-net.yml
+    kompose.version: 1.16.0 (HEAD)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: server01
+  name: server01
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.service: server01
+    spec:
+      containers:
+      - image: server01
+        name: server01
+        resources: {}
+        volumeMounts:
+        - mountPath: /opt/zato/3.0/code/zato_extra_paths
+          name: server01-claim0
+        - mountPath: /opt/zato/env/server01/run/config/repo/logging.conf
+          name: server01-claim1
+      restartPolicy: Always
+      volumes:
+      - name: server01-claim0
+        persistentVolumeClaim:
+          claimName: server01-claim0
+      - name: server01-claim1
+        persistentVolumeClaim:
+          claimName: server01-claim1
+status: {}

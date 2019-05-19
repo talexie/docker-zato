@@ -1,0 +1,25 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: ./migration-tools parse --docker-file docker-compose-no-net.yml
+    kompose.version: 1.16.0 (HEAD)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: zato-odb
+  name: zato-odb
+spec:
+  replicas: 0
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.service: zato-odb
+    spec:
+      containers:
+      - image: zato-odb
+        name: zato_odb
+        resources: {}
+      restartPolicy: Always
+status: {}

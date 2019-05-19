@@ -1,0 +1,40 @@
+## This is the service-wise list of constructs that need to be handled specially.
+Please refer https://rancher.com/docs/rancher/v2.x/en/v1.6-migration/ to transition these to Rancher 2.0.
+load-balancer:
+  ports:
+    Refer: https://rancher.com/blog/2018/2018-08-14-expose-and-monitor-workloads/
+    Please add a hostPort or a nodePort to your Kubernetes workload to expose the ports used.
+scheduler:
+  depends_on:
+server01:
+  depends_on:
+  volumes:
+server02:
+  depends_on:
+  volumes:
+server03:
+  depends_on:
+  volumes:
+server04:
+  depends_on:
+  volumes:
+server05:
+  depends_on:
+  volumes:
+server06:
+  depends_on:
+  volumes:
+web-admin:
+  depends_on:
+  ports:
+    Refer: https://rancher.com/blog/2018/2018-08-14-expose-and-monitor-workloads/
+    Please add a hostPort or a nodePort to your Kubernetes workload to expose the ports used.
+zato_kvdb:
+  volumes:
+
+## More Docker/Rancher1.6 constructs that need to be transitioned to Kubernetes/Rancher 2.0 in a special way:
+  networks
+  Rancher Metadata - Incase your applications depend on metadata.
+  Rancher 1.6 FQDN resolution format
+
+Please contact Rancher Support for more help to migrate these to Rancher 2.0, as there is no direct translation available.

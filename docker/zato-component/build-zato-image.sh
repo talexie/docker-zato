@@ -51,8 +51,23 @@ function apply_pre_hotfix() {
 }
 
 function create_zato_db() {
-    sudo -u postgres psql -c "CREATE USER $ZATO_POSTGRES_USER WITH PASSWORD '$ZATO_POSTGRES_PASS';"
-    sudo -u postgres psql -c "CREATE DATABASE $ZATO_POSTGRES_NAME;"
+    # Create ODB role
+    if [ "$( sudo -u postgres psql -tAc "SELECT 1 FROM pg_user WHERE usename = '$ZATO_POSTGRES_USER'" )" = '1' ]
+    then
+        echo "ODB role already exists"
+        sudo -u postgres psql -c "ALTER ROLE $ZATO_POSTGRES_USER WITH PASSWORD '$ZATO_POSTGRES_PASS';"
+    else
+        echo "ODB role does not exist, creating role $ZATO_POSTGRES_USER"
+        sudo -u postgres psql -c "CREATE USER $ZATO_POSTGRES_USER WITH PASSWORD '$ZATO_POSTGRES_PASS';"
+    fi
+    # Create ODB database
+    if [ "$( sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$ZATO_POSTGRES_NAME'" )" = '1' ]
+    then
+        echo "ODB database already exists"
+    else
+        echo "ODB database does not exist, creating database $ZATO_POSTGRES_NAME"
+        sudo -u postgres psql -c "CREATE DATABASE $ZATO_POSTGRES_NAME;"
+    fi
     sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $ZATO_POSTGRES_NAME TO $ZATO_POSTGRES_USER;"
 }
 
@@ -68,6 +83,7 @@ function make_zato_load_balancer() {
 }
 
 function make_zato_web_admin() {
+    sudo -u zato rm -rf "${ZATO_ENV_PATH}/web_admin/run"
     sudo -u zato mkdir -p "${ZATO_ENV_PATH}/web_admin/run"
     sudo -u zato $ZATO_BIN create web_admin "${ZATO_ENV_PATH}/web_admin/run" \
         --odb_host "$ZATO_POSTGRES_HOST" \
@@ -83,23 +99,41 @@ function make_zato_web_admin() {
         "${ZATO_CA_PATH}/web_admin/zato.web_admin.cert.pem" \
         "${ZATO_CA_PATH}/zato.ca.cert.pem" \
         "$ZATO_TECH_USERNAME"
-    
+
     sudo -u zato $ZATO_BIN update password "${ZATO_ENV_PATH}/web_admin/run" admin --password "$ZATO_ADMIN_PASSWORD"
 }
 
 function make_zato_odb() {
-    sudo -u zato $ZATO_BIN create odb \
-        --odb_host "$ZATO_POSTGRES_HOST" \
-        --odb_port "$ZATO_POSTGRES_PORT" \
-        --odb_user "$ZATO_POSTGRES_USER" \
-        --odb_db_name "$ZATO_POSTGRES_NAME" \
-        --odb_password "$ZATO_POSTGRES_PASS" \
-        --verbose \
-        postgresql 
+  # Make ODB
+  if [ "$( sudo -u postgres psql -tAc "SELECT 1 FROM information_schema.tables WHERE table_schema = '$ZATO_POSTGRES_NAME' AND table_name = 'user_profile'" )" = '1' ]
+  then
+      echo "ODB database already exists, deleting the objects"
+      sudo -u zato $ZATO_BIN delete odb postgresql \
+          --odb_password "$ZATO_POSTGRES_PASS" \
+          --odb_host "$ZATO_POSTGRES_HOST" \
+          --odb_port "$ZATO_POSTGRES_PORT" \
+          --odb_user "$ZATO_POSTGRES_USER" \
+          --odb_db_name "$ZATO_POSTGRES_NAME" \
+          --verbose
+
+  else
+      echo "Populating ODB database"
+      sudo -u zato $ZATO_BIN create odb \
+          --odb_host "$ZATO_POSTGRES_HOST" \
+          --odb_port "$ZATO_POSTGRES_PORT" \
+          --odb_user "$ZATO_POSTGRES_USER" \
+          --odb_db_name "$ZATO_POSTGRES_NAME" \
+          --odb_password "$ZATO_POSTGRES_PASS" \
+          --verbose \
+          postgresql
+  fi
+
 }
 
 function make_zato_scheduler() {
+    sudo -u zato rm -rf "${ZATO_ENV_PATH}/scheduler/run"
     sudo -u zato mkdir -p "${ZATO_ENV_PATH}/scheduler/run"
+
     sudo -u zato $ZATO_BIN create scheduler "${ZATO_ENV_PATH}/scheduler/run" \
         --odb_host "$ZATO_POSTGRES_HOST" \
         --odb_port "$ZATO_POSTGRES_PORT" \
@@ -107,7 +141,7 @@ function make_zato_scheduler() {
         --odb_db_name "$ZATO_POSTGRES_NAME" \
         --odb_password "$ZATO_POSTGRES_PASS" \
         --kvdb_password "$ZATO_KVDB_PASS" \
-        --secret_key "$ZATO_SECRET_KEY" \
+        --secret_key "'$ZATO_SECRET_KEY'" \
         --cluster_id 1 \
         --verbose \
         postgresql "$ZATO_KVDB_HOST" "$ZATO_KVDB_PORT" \
@@ -129,6 +163,7 @@ function make_zato_cluster() {
 
 function make_zato_servers() {
     for server_id in "$@"; do
+        sudo -u zato rm -rf "${ZATO_ENV_PATH}/${server_id}/run"
         sudo -u zato mkdir -p "${ZATO_ENV_PATH}/${server_id}/run"
         sudo -u zato $ZATO_BIN create server \
             --verbose \
@@ -138,8 +173,8 @@ function make_zato_servers() {
             --odb_db_name "$ZATO_POSTGRES_NAME" \
             --odb_password "$ZATO_POSTGRES_PASS" \
             --kvdb_password "$ZATO_KVDB_PASS" \
-            --secret_key "$ZATO_SECRET_KEY" \
-            --jwt_secret "$ZATO_JWT_SECRET" \
+            --secret_key "'$ZATO_SECRET_KEY'" \
+            --jwt_secret "'$ZATO_JWT_SECRET'" \
             "${ZATO_ENV_PATH}/${server_id}/run" \
             postgresql "$ZATO_KVDB_HOST" "$ZATO_KVDB_PORT" \
             "${ZATO_CA_PATH}/${server_id}/zato.${server_id}.key.pub.pem" \
@@ -162,6 +197,39 @@ if [[ "$1" == "build-zato-components" ]]; then
     make_zato_scheduler
     make_zato_web_admin
     make_zato_load_balancer
+    make_zato_servers server{01..08}
+    exit 0
+fi
+
+if [[ "$1" == "build-zato-odb-cluster" ]]; then
+    set -x
+    /etc/init.d/postgresql start
+    cp /etc/hosts /etc/hosts2
+    echo "127.0.0.1 ${ZATO_POSTGRES_HOST} $(hostname -s) # zatobase_buildonly" >> /etc/hosts
+    create_zato_db
+    apply_pre_hotfix
+    make_zato_odb
+    make_zato_cluster
+    exit 0
+fi
+
+if [[ "$1" == "build-zato-web-admin" ]]; then
+    set -x
+    cp /etc/hosts /etc/hosts2
+    apply_pre_hotfix
+    make_zato_scheduler
+    make_zato_web_admin
+    exit 0
+fi
+if [[ "$1" == "build-zato-load-balancer" ]]; then
+    set -x
+    apply_pre_hotfix
+    make_zato_load_balancer
+    exit 0
+fi
+if [[ "$1" == "build-zato-server" ]]; then
+    set -x
+    apply_pre_hotfix
     make_zato_servers server{01..08}
     exit 0
 fi

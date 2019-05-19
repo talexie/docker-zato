@@ -1,7 +1,7 @@
 version: '2.1'
 services:
   kvdb:
-    container_name: kvdb
+    container_name: zato_kvdb
     build:
       context: .
       dockerfile: ./docker/zato-kvdb/Dockerfile
@@ -15,7 +15,7 @@ services:
     - ./data/redis:/data
 
   odb:
-    container_name: odb
+    container_name: zato_odb
     build:
       context: .
       dockerfile: ./docker/zato-odb/Dockerfile

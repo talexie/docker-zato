@@ -1,0 +1,33 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: ./migration-tools parse --docker-file docker-compose-no-net.yml
+    kompose.version: 1.16.0 (HEAD)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: zato-kvdb
+  name: zato-kvdb
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.service: zato-kvdb
+    spec:
+      containers:
+      - image: zato-kvdb
+        name: zato_kvdb
+        resources: {}
+        volumeMounts:
+        - mountPath: /data
+          name: zato-kvdb-claim0
+      restartPolicy: Always
+      volumes:
+      - name: zato-kvdb-claim0
+        persistentVolumeClaim:
+          claimName: zato-kvdb-claim0
+status: {}

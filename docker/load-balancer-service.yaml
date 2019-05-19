@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: ./migration-tools parse --docker-file docker-compose-no-net.yml
+    kompose.version: 1.16.0 (HEAD)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: load-balancer
+  name: load-balancer
+spec:
+  ports:
+  - name: "11223"
+    port: 11223
+    targetPort: 11223
+  selector:
+    io.kompose.service: load-balancer
+status:
+  loadBalancer: {}

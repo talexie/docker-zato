@@ -1,0 +1,27 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: ./migration-tools parse --docker-file docker-compose-no-net.yml
+    kompose.version: 1.16.0 (HEAD)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: load-balancer
+  name: load-balancer
+spec:
+  replicas: 0
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.service: load-balancer
+    spec:
+      containers:
+      - image: load-balancer
+        name: load-balancer
+        ports:
+        - containerPort: 11223
+        resources: {}
+      restartPolicy: Always
+status: {}

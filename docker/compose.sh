@@ -60,7 +60,7 @@ if [ ! -e "${SECRET_DIR}/certs/ssl_okay" ]; then
         openssl req -new -key zato.server${no}.key.pem -out zato.server${no}.req.csr \
                 -subj "${SSL_SUBJECT}/CN=Zato Dev Server ${no}"
         openssl x509 -req -days 365 -in zato.server${no}.req.csr -CA ./zato.ca.cert.pem \
-                -CAkey zato.ca.key.pem -CAcreateserial -out zato.server${no}.cert.pem 
+                -CAkey zato.ca.key.pem -CAcreateserial -out zato.server${no}.cert.pem
         rm -f zato.server${no}.req.csr
         i=$[i+1]
     done
@@ -77,13 +77,13 @@ if [ ! -e "${SECRET_DIR}/env_file" ]; then
         [[ "$use_val" == "UUID_GEN" ]] && use_val="$(uuidgen)"
         [[ "$use_val" == "FERNET_GEN" ]] && \
             use_val="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
-        
+
         echo "export ${name}=\"${use_val}\"" >> "${SECRET_DIR}/env_file"
     }
 
     add_env ZATO_BIN "/opt/zato/current/bin/zato"
     add_env POSTGRES_PASSWORD ${POSTGRES_PASSWORD:-"UUID_GEN"}
-    add_env ZATO_POSTGRES_HOST odb  # If you change this, you must also change docker-compose.yml
+    add_env ZATO_POSTGRES_HOST zato_odb  # If you change this, you must also change docker-compose.yml
     add_env ZATO_POSTGRES_PORT ${ZATO_POSTGRES_PORT:-"5432"}
     add_env ZATO_POSTGRES_USER ${ZATO_POSTGRES_USER:-"zato"}
     add_env ZATO_POSTGRES_PASS ${ZATO_POSTGRES_PASS:-"UUID_GEN"}
@@ -92,7 +92,7 @@ if [ ! -e "${SECRET_DIR}/env_file" ]; then
     add_env ZATO_ADMIN_PASSWORD ${ZATO_ADMIN_PASSWORD:-"UUID_GEN"}
     add_env ZATO_TECH_USERNAME ${ZATO_TECH_USERNAME:-"zatoacct"}
     add_env ZATO_TECH_PASSWORD ${ZATO_TECH_PASSWORD:-"UUID_GEN"}
-    add_env ZATO_KVDB_HOST kvdb     # If you change this, you must also change docker-compose.yml
+    add_env ZATO_KVDB_HOST zato_kvdb     # If you change this, you must also change docker-compose.yml
     add_env ZATO_KVDB_PASS ${ZATO_KVDB_PASS:-"UUID_GEN"}
     add_env ZATO_KVDB_PORT ${ZATO_KVDB_PORT:-"6379"}
     add_env ZATO_CLUSTER_NAME ${ZATO_CLUSTER_NAME:-"cluster1"}
@@ -105,10 +105,10 @@ if [ ! -e "${SECRET_DIR}/env_file" ]; then
     add_env ZATO_NETWORK_START ${ZATO_NETWORK_START:-"10.9.8."}
 fi
 
-if [[ "$(docker image ls -q zatobase:latest)" == "" ]]; then
+if [[ "$(docker image ls -q talexie/zatobase:latest)" == "" ]]; then
     cd "${PROJECT_DIR}"
-    echo "Building zatobase:latest"
-    docker build --file docker/Dockerfile . --tag zatobase:latest
+    echo "Building talexie/zatobase:latest"
+    docker build --file docker/Dockerfile . --tag talexie/zatobase:latest
 fi
 
 if [[ "$@" == "" ]]; then
@@ -133,4 +133,3 @@ else
         --file "${CONTEXT_DIR}/docker/docker-compose.yml" \
         "$@"
 fi
-
