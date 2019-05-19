@@ -50,5 +50,9 @@ RUN sed -i -r "s/zato_kvdb/${ZATO_KVDB_HOST}/g" /opt/zato/env/build_secrets
 RUN bash /opt/zato/env/build-zato-image.sh build-zato-server
 CMD bash /opt/zato/env/build-zato-image.sh run-base-warning
 
+COPY --chown=zato:zato ./docker/zato-server/zato_start_server /opt/zato/
+COPY --chown=zato:zato ./docker/zato-server/supervisord.conf /opt/zato/
+RUN chmod 755 /opt/zato/zato_start_server
+
 EXPOSE 17010
-CMD /usr/bin/supervisord -c /opt/zato/configs/supervisord.conf
+CMD /usr/bin/supervisord -c /opt/zato/supervisord.conf

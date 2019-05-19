@@ -31,5 +31,10 @@ RUN sed -i -r "s/zato_kvdb/${ZATO_KVDB_HOST}/g" /opt/zato/env/build_secrets
 RUN bash /opt/zato/env/build-zato-image.sh build-zato-web-admin
 CMD bash /opt/zato/env/build-zato-image.sh run-base-warning
 
+COPY --chown=zato:zato ./docker/zato-web-admin/zato_start_web_admin /opt/zato/
+COPY --chown=zato:zato ./docker/zato-web-admin/zato_start_scheduler /opt/zato/
+RUN chmod 755 /opt/zato/zato_start_web_admin
+RUN chmod 755 /opt/zato/zato_start_scheduler
+
 EXPOSE 8183
 CMD /usr/bin/supervisord -c /opt/zato/configs/supervisord.conf

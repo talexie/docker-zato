@@ -23,8 +23,12 @@ RUN chown -R zato:zato /opt/zato/env
 RUN bash /opt/zato/env/build-zato-image.sh build-zato-load-balancer
 CMD bash /opt/zato/env/build-zato-image.sh run-base-warning
 
+COPY --chown=zato:zato ./docker/zato-load-balancer/zato_start_load_balancer /opt/zato/
+COPY --chown=zato:zato ./docker/zato-load-balancer/supervisord.conf /opt/zato/
+RUN chmod 755 /opt/zato/zato_start_load_balancer
+
 USER root
 
 EXPOSE 11223 20151
 
-CMD /usr/bin/supervisord -c /opt/zato/configs/supervisord.conf
+CMD /usr/bin/supervisord -c /opt/zato/supervisord.conf

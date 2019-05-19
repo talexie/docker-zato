@@ -138,7 +138,7 @@ if [[ "$(docker image ls -q talexie/zato-load-balancer:latest)" != "" ]]; then
     docker build --file docker/zato-load-balancer/Dockerfile . --tag talexie/zato-load-balancer:latest
 fi
 
-if [[ "$(docker image ls -q talexie/zato-server:latest)" == "" ]]; then
+if [[ "$(docker image ls -q talexie/zato-server:latest)" != "" ]]; then
     cd "${PROJECT_DIR}"
     echo "Building talexie/zato-server:latest"
     docker build \
