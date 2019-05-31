@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Thanks to Zato, rafal-k
 
 cd /opt/zato
-
+# To give servers ample time to start
+sleep 10
+#source /opt/zato/env/build-zato-image.sh build-zato-web-admin
 rm -f /opt/zato/env/web-admin/run/pidfile
 /opt/zato/current/bin/zato start /opt/zato/env/web-admin/run --fg

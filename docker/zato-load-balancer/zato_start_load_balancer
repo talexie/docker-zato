@@ -3,6 +3,6 @@
 
 cd /opt/zato
 
-rm -f /opt/zato/env/load_balancer/run/zato-lb-agent.pid
-rm -f /opt/zato/env/load_balancer/run/pidfile
-/opt/zato/current/bin/zato start /opt/zato/env/load_balancer/run --fg
+rm -f /opt/zato/env/load-balancer/run/zato-lb-agent.pid
+rm -f /opt/zato/env/load-balancer/run/pidfile
+/opt/zato/current/bin/zato start /opt/zato/env/load-balancer/run --fg

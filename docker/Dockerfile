@@ -1,11 +1,11 @@
 FROM ubuntu:18.04
-
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update
 RUN apt-get install -y \
     apt-transport-https curl git libcurl4-openssl-dev \
     software-properties-common
 RUN apt-get install -y \
-    sudo supervisor
+    sudo supervisor tzdata
 
 # Install Zato and download the latest version
 RUN curl -s https://zato.io/repo/zato-0CBD7F72.pgp.asc | sudo apt-key add - && \
@@ -14,38 +14,12 @@ WORKDIR /opt/zato/current
 USER zato
 RUN git pull && ./bin/pip install -e ./zato-cy
 
-ENV DEBIAN_FRONTEND=noninteractive
-
 # Install PostgreSQL
 USER root
 
 # Copy our certificates over
-RUN mkdir -p /opt/zato/env/{web_admin,load_balancer,server{01..08}}/{run,certs}
+RUN mkdir -p /opt/zato/env/{web-admin,load-balancer,server{01..08}}/{run,certs}
 COPY ./secrets/certs/zato.ca.cert.pem /opt/zato/env/zato.ca.cert.pem
-COPY ./secrets/certs/zato.server01.key.pub.pem /opt/zato/env/server01/zato.server01.key.pub.pem
-COPY ./secrets/certs/zato.server01.key.pem /opt/zato/env/server01/zato.server01.key.pem
-COPY ./secrets/certs/zato.server01.cert.pem /opt/zato/env/server01/zato.server01.cert.pem
-COPY ./secrets/certs/zato.server02.key.pub.pem /opt/zato/env/server02/zato.server02.key.pub.pem
-COPY ./secrets/certs/zato.server02.key.pem /opt/zato/env/server02/zato.server02.key.pem
-COPY ./secrets/certs/zato.server02.cert.pem /opt/zato/env/server02/zato.server02.cert.pem
-COPY ./secrets/certs/zato.server03.key.pub.pem /opt/zato/env/server03/zato.server03.key.pub.pem
-COPY ./secrets/certs/zato.server03.key.pem /opt/zato/env/server03/zato.server03.key.pem
-COPY ./secrets/certs/zato.server03.cert.pem /opt/zato/env/server03/zato.server03.cert.pem
-COPY ./secrets/certs/zato.server04.key.pub.pem /opt/zato/env/server04/zato.server04.key.pub.pem
-COPY ./secrets/certs/zato.server04.key.pem /opt/zato/env/server04/zato.server04.key.pem
-COPY ./secrets/certs/zato.server04.cert.pem /opt/zato/env/server04/zato.server04.cert.pem
-COPY ./secrets/certs/zato.server05.key.pub.pem /opt/zato/env/server05/zato.server05.key.pub.pem
-COPY ./secrets/certs/zato.server05.key.pem /opt/zato/env/server05/zato.server05.key.pem
-COPY ./secrets/certs/zato.server05.cert.pem /opt/zato/env/server05/zato.server05.cert.pem
-COPY ./secrets/certs/zato.server06.key.pub.pem /opt/zato/env/server06/zato.server06.key.pub.pem
-COPY ./secrets/certs/zato.server06.key.pem /opt/zato/env/server06/zato.server06.key.pem
-COPY ./secrets/certs/zato.server06.cert.pem /opt/zato/env/server06/zato.server06.cert.pem
-COPY ./secrets/certs/zato.server07.key.pub.pem /opt/zato/env/server07/zato.server07.key.pub.pem
-COPY ./secrets/certs/zato.server07.key.pem /opt/zato/env/server07/zato.server07.key.pem
-COPY ./secrets/certs/zato.server07.cert.pem /opt/zato/env/server07/zato.server07.cert.pem
-COPY ./secrets/certs/zato.server08.key.pub.pem /opt/zato/env/server08/zato.server08.key.pub.pem
-COPY ./secrets/certs/zato.server08.key.pem /opt/zato/env/server08/zato.server08.key.pem
-COPY ./secrets/certs/zato.server08.cert.pem /opt/zato/env/server08/zato.server08.cert.pem
 
 
 # Copy our build files

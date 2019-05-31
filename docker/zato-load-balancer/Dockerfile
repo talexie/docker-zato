@@ -2,16 +2,14 @@ FROM talexie/zatobase:latest
 
 # Copy certificates
 
-COPY ./secrets/certs/zato.load_balancer.key.pub.pem /opt/zato/env/load_balancer/zato.load_balancer.key.pub.pem
-COPY ./secrets/certs/zato.load_balancer.key.pem /opt/zato/env/load_balancer/zato.load_balancer.key.pem
-COPY ./secrets/certs/zato.load_balancer.cert.pem /opt/zato/env/load_balancer/zato.load_balancer.cert.pem
+COPY ./secrets/certs/zato.load_balancer.key.pub.pem /opt/zato/env/load-balancer/zato.load_balancer.key.pub.pem
+COPY ./secrets/certs/zato.load_balancer.key.pem /opt/zato/env/load-balancer/zato.load_balancer.key.pem
+COPY ./secrets/certs/zato.load_balancer.cert.pem /opt/zato/env/load-balancer/zato.load_balancer.cert.pem
 
 RUN mkdir -p /opt/zato/configs
 
 COPY --chown=zato:zato ./docker/zato-load-balancer/supervisord.conf /opt/zato/configs/
 
-# Reconfigure timezone
-RUN apt install -y tzdata
 
 # Copy our build files
 

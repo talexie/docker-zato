@@ -11,13 +11,18 @@ RUN sed -i 's/max_connections = 10/max_connections = 100/' /etc/postgresql/10/ma
 # Copy our build files
 COPY ./secrets/env_file /opt/zato/env/build_secrets
 COPY ./docker/zato-component/build-zato-image.sh /opt/zato/env/build-zato-image.sh
+COPY ./docker/zato-odb/supervisord.conf /opt/zato/
+COPY ./docker/zato-odb/zato_start_odb_cluster /opt/zato/
+RUN chmod 755 /opt/zato/zato_start_odb_cluster
 RUN chown -R zato:zato /opt/zato/env
 
 # Build our Zato ODB components
 RUN bash /opt/zato/env/build-zato-image.sh build-zato-odb-cluster
 CMD bash /opt/zato/env/build-zato-image.sh run-base-warning
 
-ENTRYPOINT sudo -u postgres \
-    /usr/lib/postgresql/10/bin/postgres \
-    -D /var/lib/postgresql/10/main \
-    -c config_file=/etc/postgresql/10/main/postgresql.conf
+# ENTRYPOINT sudo -u postgres \
+#    /usr/lib/postgresql/10/bin/postgres \
+#    -D /var/lib/postgresql/10/main \
+#    -c config_file=/etc/postgresql/10/main/postgresql.conf
+
+CMD /usr/bin/supervisord -c /opt/zato/supervisord.conf

@@ -16,10 +16,10 @@ function insert_line() {
 source /opt/zato/env/build_secrets
 
 function apply_post_hotfix() {
-    if [ -f "/opt/zato/env/load_balancer/run/config/repo/zato.config" ]; then
+    if [ -f "/opt/zato/env/load-balancer/run/config/repo/zato.config" ]; then
         # Fix the bloody haproxy configuration (why would this listen on 127.0.0.1??)
-        haproxy_config="/opt/zato/env/load_balancer/run/config/repo/zato.config"
-        agent_config="/opt/zato/env/load_balancer/run/config/repo/lb-agent.conf"
+        haproxy_config="/opt/zato/env/load-balancer/run/config/repo/zato.config"
+        agent_config="/opt/zato/env/load-balancer/run/config/repo/lb-agent.conf"
         sed -i 's/bind 127.0.0.1/bind 0.0.0.0/' "$haproxy_config"
         sed -i 's/timeout connect 15000/timeout connect 60000/' "$haproxy_config"
         sed -i 's/timeout client 15000/timeout client 60000/' "$haproxy_config"
@@ -27,10 +27,11 @@ function apply_post_hotfix() {
         sed -i 's/localhost/0.0.0.0/' "$agent_config"
         lineno="$(grep -n 'ZATO begin backend bck_http_plain' "$haproxy_config" | cut -f1 -d:)"
         for server_id in {06..01}; do
-            grep --silent "${ZATO_NETWORK_START}1${server_id}" "$haproxy_config" || insert_line "$haproxy_config" "$((lineno+1))" \
-                "server http_plain--server${server_id} ${ZATO_NETWORK_START}1${server_id}:17010 check inter 2s" \
-                "rise 2 fall 2 # ZATO backend bck_http_plain:server--${server_id}"
+            grep --silent "zato-server${server_id}" "$haproxy_config" || insert_line "$haproxy_config" \ "$((lineno+1))" \
+                "tserver http_plain--server${server_id} zato-server${server_id}:17010 check inter 2s" \
+                "rise 2 fall 2 # ZATO backend bck_http_plain:server--server${server_id}"
         done
+        sed -i -e 's/tserver/    server/' "$haproxy_config"
     fi
 
     for config_file in /opt/zato/env/server??/run/config/repo/server.conf; do
@@ -72,20 +73,20 @@ function create_zato_db() {
 }
 
 function make_zato_load_balancer() {
-    sudo -u zato mkdir -p "${ZATO_ENV_PATH}/load_balancer/run"
+    sudo -u zato mkdir -p "${ZATO_ENV_PATH}/load-balancer/run"
     sudo -u zato $ZATO_BIN create load_balancer \
-        "${ZATO_ENV_PATH}/load_balancer/run" \
-        "${ZATO_CA_PATH}/load_balancer/zato.load_balancer.key.pub.pem" \
-        "${ZATO_CA_PATH}/load_balancer/zato.load_balancer.key.pem" \
-        "${ZATO_CA_PATH}/load_balancer/zato.load_balancer.cert.pem" \
+        "${ZATO_ENV_PATH}/load-balancer/run" \
+        "${ZATO_CA_PATH}/load-balancer/zato.load_balancer.key.pub.pem" \
+        "${ZATO_CA_PATH}/load-balancer/zato.load_balancer.key.pem" \
+        "${ZATO_CA_PATH}/load-balancer/zato.load_balancer.cert.pem" \
         "${ZATO_CA_PATH}/zato.ca.cert.pem"
-    sed -i 's/bind 127.0.0.1/bind 0.0.0.0/' '/opt/zato/env/load_balancer/run/config/repo/zato.config'
+    sed -i 's/bind 127.0.0.1/bind 0.0.0.0/' '/opt/zato/env/load-balancer/run/config/repo/zato.config'
 }
 
 function make_zato_web_admin() {
-    sudo -u zato rm -rf "${ZATO_ENV_PATH}/web_admin/run"
-    sudo -u zato mkdir -p "${ZATO_ENV_PATH}/web_admin/run"
-    sudo -u zato $ZATO_BIN create web_admin "${ZATO_ENV_PATH}/web_admin/run" \
+    sudo -u zato rm -rf "${ZATO_ENV_PATH}/web-admin/run"
+    sudo -u zato mkdir -p "${ZATO_ENV_PATH}/web-admin/run"
+    sudo -u zato $ZATO_BIN create web_admin \
         --odb_host "$ZATO_POSTGRES_HOST" \
         --odb_port "$ZATO_POSTGRES_PORT" \
         --odb_user "$ZATO_POSTGRES_USER" \
@@ -93,19 +94,20 @@ function make_zato_web_admin() {
         --odb_password "$ZATO_POSTGRES_PASS" \
         --tech_account_password "$ZATO_TECH_PASSWORD" \
         --verbose \
-        postgresql \
-        "${ZATO_CA_PATH}/web_admin/zato.web_admin.key.pub.pem" \
-        "${ZATO_CA_PATH}/web_admin/zato.web_admin.key.pem" \
-        "${ZATO_CA_PATH}/web_admin/zato.web_admin.cert.pem" \
+        "${ZATO_ENV_PATH}/web-admin/run" postgresql \
+        "${ZATO_CA_PATH}/web-admin/zato.web_admin.key.pub.pem" \
+        "${ZATO_CA_PATH}/web-admin/zato.web_admin.key.pem" \
+        "${ZATO_CA_PATH}/web-admin/zato.web_admin.cert.pem" \
         "${ZATO_CA_PATH}/zato.ca.cert.pem" \
         "$ZATO_TECH_USERNAME"
 
-    sudo -u zato $ZATO_BIN update password "${ZATO_ENV_PATH}/web_admin/run" admin --password "$ZATO_ADMIN_PASSWORD"
+
+    sudo -u zato $ZATO_BIN update password "${ZATO_ENV_PATH}/web-admin/run" admin --password "$ZATO_ADMIN_PASSWORD"
 }
 
 function make_zato_odb() {
   # Make ODB
-  if [ "$( sudo -u postgres psql -tAc "SELECT 1 FROM information_schema.tables WHERE table_schema = '$ZATO_POSTGRES_NAME' AND table_name = 'user_profile'" )" = '1' ]
+  if [ "$( sudo -u postgres psql -tAc "SELECT 1 FROM information_schema.tables WHERE table_schema = '$ZATO_POSTGRES_NAME' AND table_name = 'cluster'" )" = '1' ]
   then
       echo "ODB database already exists, deleting the objects"
       sudo -u zato $ZATO_BIN delete odb postgresql \
@@ -159,6 +161,7 @@ function make_zato_cluster() {
         --odb_user $ZATO_POSTGRES_USER --odb_db_name $ZATO_POSTGRES_NAME postgresql \
         $ZATO_LB_HOST $ZATO_LB_PORT $ZATO_LB_AGENT_PORT $ZATO_KVDB_HOST $ZATO_KVDB_PORT \
         $ZATO_CLUSTER_NAME $ZATO_TECH_USERNAME
+
 }
 
 function make_zato_servers() {
@@ -191,7 +194,7 @@ if [[ "$1" == "build-zato-components" ]]; then
     cp /etc/hosts /etc/hosts2
     echo "127.0.0.1 ${ZATO_POSTGRES_HOST} $(hostname -s) # zatobase_buildonly" >> /etc/hosts
     create_zato_db
-    apply_pre_hotfix
+    #apply_pre_hotfix
     make_zato_odb
     make_zato_cluster
     make_zato_scheduler
@@ -204,33 +207,42 @@ fi
 if [[ "$1" == "build-zato-odb-cluster" ]]; then
     set -x
     /etc/init.d/postgresql start
-    cp /etc/hosts /etc/hosts2
-    echo "127.0.0.1 ${ZATO_POSTGRES_HOST} $(hostname -s) # zatobase_buildonly" >> /etc/hosts
+    #cp /etc/hosts /etc/hosts2
+    #echo "127.0.0.1 ${ZATO_POSTGRES_HOST} $(hostname -s) # zatobase_buildonly" >> /etc/hosts
     create_zato_db
-    apply_pre_hotfix
+    #apply_pre_hotfix
     make_zato_odb
+    sleep 20
     make_zato_cluster
     exit 0
 fi
-
-if [[ "$1" == "build-zato-web-admin" ]]; then
+if [[ "$1" == "start-zato-odb-cluster" ]]; then
     set -x
-    cp /etc/hosts /etc/hosts2
-    apply_pre_hotfix
-    make_zato_scheduler
-    make_zato_web_admin
+    /etc/init.d/postgresql restart
     exit 0
 fi
+
 if [[ "$1" == "build-zato-load-balancer" ]]; then
     set -x
-    apply_pre_hotfix
+    #apply_pre_hotfix
     make_zato_load_balancer
+    apply_post_hotfix
+    exit 0
+fi
+
+if [[ "$1" == "build-zato-scheduler" ]]; then
+    make_zato_scheduler
     exit 0
 fi
 if [[ "$1" == "build-zato-server" ]]; then
     set -x
-    apply_pre_hotfix
-    make_zato_servers server{01..08}
+    #apply_pre_hotfix
+    #make_zato_servers server{01..08}
+    make_zato_servers server{01..01}
+    exit 0
+fi
+if [[ "$1" == "build-zato-web-admin" ]]; then
+    make_zato_web_admin
     exit 0
 fi
 

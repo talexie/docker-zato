@@ -1,9 +1,9 @@
 FROM talexie/zatobase:latest
-ARG ZATO_ODB_HOST=zato_odb
-ARG ZATO_KVDB_HOST=zato_kvdb
+ARG ZATO_ODB_HOST=zato-odb
+ARG ZATO_KVDB_HOST=zato-kvdb
 
 # Copy certificates
-# RUN mkdir -p /opt/zato/env/{server{01..08}}/{run,certs}
+
 COPY ./secrets/certs/zato.ca.cert.pem /opt/zato/env/zato.ca.cert.pem
 COPY ./secrets/certs/zato.server01.key.pub.pem /opt/zato/env/server01/zato.server01.key.pub.pem
 COPY ./secrets/certs/zato.server01.key.pem /opt/zato/env/server01/zato.server01.key.pem
@@ -33,18 +33,13 @@ COPY ./secrets/certs/zato.server08.cert.pem /opt/zato/env/server08/zato.server08
 RUN mkdir -p /opt/zato/configs
 
 COPY --chown=zato:zato ./docker/zato-server/supervisord.conf /opt/zato/configs/
-# Reconfigure timezone
-RUN apt install -y tzdata
-# RUN dpkg-reconfigure -f noninteractive tzdata
+
 # Copy our build files
 
 COPY ./secrets/env_file /opt/zato/env/build_secrets
 
 COPY ./docker/zato-component/build-zato-image.sh /opt/zato/env/build-zato-image.sh
 RUN chown -R zato:zato /opt/zato/env
-
-RUN sed -i -r "s/zato_odb/${ZATO_ODB_HOST}/g" /opt/zato/env/build_secrets
-RUN sed -i -r "s/zato_kvdb/${ZATO_KVDB_HOST}/g" /opt/zato/env/build_secrets
 
 # Build our Zato Server components
 RUN bash /opt/zato/env/build-zato-image.sh build-zato-server

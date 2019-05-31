@@ -84,7 +84,7 @@ if [ ! -e "${SECRET_DIR}/env_file" ]; then
     add_env ZATO_BIN "/opt/zato/current/bin/zato"
     add_env POSTGRES_PASSWORD ${POSTGRES_PASSWORD:-"UUID_GEN"}
     #add_env ZATO_POSTGRES_HOST zato_odb  # If you change this, you must also change docker-compose.yml
-    add_env ZATO_POSTGRES_PORT ${ZATO_POSTGRES_HOST:-"zato_odb"}
+    add_env ZATO_POSTGRES_HOST ${ZATO_POSTGRES_HOST:-"zato-odb"}
     add_env ZATO_POSTGRES_PORT ${ZATO_POSTGRES_PORT:-"5432"}
     add_env ZATO_POSTGRES_USER ${ZATO_POSTGRES_USER:-"zato"}
     add_env ZATO_POSTGRES_PASS ${ZATO_POSTGRES_PASS:-"UUID_GEN"}
@@ -93,17 +93,17 @@ if [ ! -e "${SECRET_DIR}/env_file" ]; then
     add_env ZATO_ADMIN_PASSWORD ${ZATO_ADMIN_PASSWORD:-"UUID_GEN"}
     add_env ZATO_TECH_USERNAME ${ZATO_TECH_USERNAME:-"zatoacct"}
     add_env ZATO_TECH_PASSWORD ${ZATO_TECH_PASSWORD:-"UUID_GEN"}
-    add_env ZATO_KVDB_HOST zato_kvdb     # If you change this, you must also change docker-compose.yml
+    add_env ZATO_KVDB_HOST ${ZATO_KVDB_HOST:-"zato-kvdb"}     # If you change this, you must also change docker-compose.yml
     add_env ZATO_KVDB_PASS ${ZATO_KVDB_PASS:-"UUID_GEN"}
     add_env ZATO_KVDB_PORT ${ZATO_KVDB_PORT:-"6379"}
     add_env ZATO_CLUSTER_NAME ${ZATO_CLUSTER_NAME:-"cluster1"}
-    add_env ZATO_LB_HOST ${ZATO_LB_HOST:-"load-balancer"}
+    add_env ZATO_LB_HOST ${ZATO_LB_HOST:-"zato-lb"}
     add_env ZATO_LB_PORT ${ZATO_LB_PORT:-"11223"}
     add_env ZATO_LB_AGENT_PORT ${ZATO_LB_AGENT_PORT:-"20151"}
     add_env ZATO_CLUSTER_NAME ${ZATO_CLUSTER_NAME:-"cluster1"}
     add_env ZATO_JWT_SECRET ${ZATO_JWT_SECRET:-"FERNET_GEN"}
     add_env ZATO_SECRET_KEY ${ZATO_SECRET_KEY:-"FERNET_GEN"}
-    add_env ZATO_NETWORK_START ${ZATO_NETWORK_START:-"10.9.8."}
+    #add_env ZATO_NETWORK_START ${ZATO_NETWORK_START:-"10.9.8."}
 fi
 
 if [[ "$(docker image ls -q talexie/zatobase:latest)" != "" ]]; then
@@ -114,41 +114,83 @@ fi
 if [[ "$(docker image ls -q talexie/zato-odb:latest)" != "" ]]; then
     cd "${PROJECT_DIR}"
     echo "Building talexie/zato-odb:latest"
-    docker build --file docker/zato-odb/Dockerfile . --tag talexie/zato-odb:latest
+    docker build --add-host=zato-odb:127.0.0.1 --file docker/zato-odb/Dockerfile . --tag talexie/zato-odb:latest
 fi
-if [[ "$(docker image ls -q talexie/zato-kvdb:latest)" != "" ]]; then
+#if [[ "$(docker image ls -q talexie/zato-kvdb:latest)" == "" ]]; then
     cd "${PROJECT_DIR}"
     echo "Building talexie/zato-kvdb:latest"
-    docker build --file docker/zato-kvdb/Dockerfile . --tag talexie/zato-kvdb:latest
-fi
+    docker build --add-host=zato-kvdb:127.0.0.1 --file docker/zato-kvdb/Dockerfile . --tag talexie/zato-kvdb:latest
+#fi
 # Start ODB cluster so that web admin can use it.
- docker run -d --name=zato_odb talexie/zato-odb:latest
- docker run -d --name=zato_kvdb talexie/zato-kvdb:latest
-if [[ "$(docker image ls -q talexie/zato-web-admin:latest)" != "" ]]; then
-    cd "${PROJECT_DIR}"
-    echo "Building talexie/zato-web-admin:latest"
-    docker build \
-    --build-arg ZATO_ODB_HOST="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato_odb)" \
-    --build-arg ZATO_KVDB_HOST="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato_kvdb)" \
-    --file docker/zato-web-admin/Dockerfile . --tag talexie/zato-web-admin:latest
+if [[ "$(docker container ls -q -f name='zato-odb')" == "" ]]; then
+  docker run -d --name=zato-odb talexie/zato-odb:latest
+else
+  docker stop zato-odb
+  docker rm zato-odb
+  docker run -d --name=zato-odb talexie/zato-odb:latest
 fi
-if [[ "$(docker image ls -q talexie/zato-load-balancer:latest)" != "" ]]; then
-    cd "${PROJECT_DIR}"
-    echo "Building talexie/zato-load-balancer:latest"
-    docker build --file docker/zato-load-balancer/Dockerfile . --tag talexie/zato-load-balancer:latest
+if [[ "$(docker container ls -q -f name='zato-kvdb')" == "" ]]; then
+  docker run -d --name=zato-kvdb talexie/zato-kvdb:latest
+else
+  docker stop zato-kvdb
+  docker rm zato-kvdb
+  docker run -d --name=zato-kvdb talexie/zato-kvdb:latest
 fi
+ sleep 20
+ #if [[ "$(docker image ls -q talexie/zato-load-balancer:latest)" != "" ]]; then
+     cd "${PROJECT_DIR}"
+     echo "Building talexie/zato-load-balancer:latest"
+     docker build --file docker/zato-load-balancer/Dockerfile . --tag talexie/zato-load-balancer:latest
+ #fi
+ #if [[ "$(docker image ls -q talexie/zato-web-admin:latest)" != "" ]]; then
 
-if [[ "$(docker image ls -q talexie/zato-server:latest)" != "" ]]; then
+     cd "${PROJECT_DIR}"
+     echo "Building talexie/zato-scheduler:latest"
+
+     docker build \
+     --build-arg ZATO_ODB_HOST="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato-odb)" \
+     --build-arg ZATO_KVDB_HOST="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato-kvdb)" \
+     --add-host zato-odb:"$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato-odb)" \
+     --add-host zato-kdb:"$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato-kvdb)" \
+     --file docker/zato-scheduler/Dockerfile . --tag talexie/zato-scheduler:latest
+ #fi
+#if [[ "$(docker image ls -q talexie/zato-server:latest)" != "" ]]; then
     cd "${PROJECT_DIR}"
     echo "Building talexie/zato-server:latest"
     docker build \
-    --build-arg ZATO_ODB_HOST="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato_odb)" \
-    --build-arg ZATO_KVDB_HOST="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato_kvdb)" \
+    --build-arg ZATO_ODB_HOST="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato-odb)" \
+    --build-arg ZATO_KVDB_HOST="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato-kvdb)" \
+    --add-host zato-odb:"$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato-odb)" \
+    --add-host zato-kdb:"$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato-kvdb)" \
     --file docker/zato-server/Dockerfile . --tag talexie/zato-server:latest
-fi
+#fi
+
+#if [[ "$(docker image ls -q talexie/zato-web-admin:latest)" != "" ]]; then
+
+    cd "${PROJECT_DIR}"
+    echo "Building talexie/zato-web-admin:latest"
+
+    docker build \
+    --build-arg ZATO_ODB_HOST="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato-odb)" \
+    --build-arg ZATO_KVDB_HOST="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato-kvdb)" \
+    --add-host zato-odb:"$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato-odb)" \
+    --add-host zato-kdb:"$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' zato-kvdb)" \
+    --file docker/zato-web-admin/Dockerfile . --tag talexie/zato-web-admin:latest
+#fi
+
 # Stop and remove the containers
-docker stop zato_kvdb zato_odb
-docker rm zato_kvdb zato_odb
+if [[ "$(docker container ls -q -f name=zato-odb)" != "" ]]; then
+  echo "Cleaning up"
+  docker commit -m "Applied cluster details" zato-odb talexie/zato-odb:latest
+  docker stop zato-odb
+  docker rm zato-odb
+fi
+if [[ "$(docker container ls -q -f name=zato-kvdb)" != "" ]]; then
+  docker commit -m "Applied cluster details" zato-kvdb talexie/zato-kvdb:latest
+  docker stop zato-kvdb
+  docker rm zato-kvdb
+fi
+
 if [[ "$@" == "" ]]; then
 
     docker-compose --help
@@ -169,3 +211,4 @@ else
     exec "migration-tools parse --docker-file '${CONTEXT_DIR}/docker/docker-compose-no-net.yml'" \
         "$@"
 fi
+set +x
