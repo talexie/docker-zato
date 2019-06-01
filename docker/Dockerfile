@@ -18,9 +18,7 @@ RUN git pull && ./bin/pip install -e ./zato-cy
 USER root
 
 # Copy our certificates over
-RUN mkdir -p /opt/zato/env/{web-admin,load-balancer,server{01..08}}/{run,certs}
 COPY ./secrets/certs/zato.ca.cert.pem /opt/zato/env/zato.ca.cert.pem
-
 
 # Copy our build files
 COPY ./secrets/env_file /opt/zato/env/build_secrets

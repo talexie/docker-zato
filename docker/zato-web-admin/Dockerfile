@@ -19,10 +19,6 @@ COPY ./secrets/env_file /opt/zato/env/build_secrets
 COPY ./docker/zato-component/build-zato-image.sh /opt/zato/env/build-zato-image.sh
 RUN chown -R zato:zato /opt/zato/env
 
-# RUN sed -i -r "s/zato-odb/${ZATO_ODB_HOST}/g" /opt/zato/env/build_secrets
-# RUN sed -i -r "s/zato-kvdb/${ZATO_KVDB_HOST}/g" /opt/zato/env/build_secrets
-
-
 # Build our Zato Web admin and scheduler components
 RUN bash /opt/zato/env/build-zato-image.sh build-zato-web-admin
 CMD bash /opt/zato/env/build-zato-image.sh run-base-warning
